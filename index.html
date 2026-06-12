@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BoletoFlow Engine - API Demo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Esconde elementos na hora da impressão */
+    @media print {
+      .print-hidden { display: none !important; }
+      body { background: white; }
+      .print-break-avoid { break-inside: avoid; }
+      .print-border-b { border-bottom: 1px solid #9ca3af; margin-bottom: 1rem; padding-bottom: 1rem; }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 text-black font-sans min-h-screen p-8">
+
+  <div class="max-w-4xl mx-auto p-8 text-black">
+    
+    <div class="print-hidden flex justify-between items-center mb-8 border-b border-gray-200 pb-4">
+      <div>
+        <h2 class="text-sm uppercase tracking-widest text-gray-400 font-bold">Demonstração Técnica</h2>
+      </div>
+      <div class="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-2 rounded text-xs font-mono shadow-sm">
+        API Endpoint: POST /api/extrair
+      </div>
+    </div>
+
+    <div class="print-hidden mb-12 bg-white p-6 shadow rounded border border-gray-200">
+      <h1 class="text-3xl font-bold mb-2">Financial Document Extraction Engine</h1>
+      <p class="text-gray-600 mb-6">Faça o upload de um PDF contendo boletos nativos. O motor Python extrairá e estruturará os dados de faturamento.</p>
+      
+      <input 
+        type="file" 
+        id="arquivoInput"
+        accept="application/pdf"
+        class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50 cursor-pointer"
+      />
+      
+      <p id="loadingMsg" class="mt-4 text-blue-600 font-medium animate-pulse hidden">
+        Enviando payload para o Render e varrendo geometria do documento (Essa parte pode demorar por causa do "cold starting" do Render.)...
+      </p>
+    </div>
+
+    <div id="areaResultados" class="hidden">
+      <div class="print-hidden flex justify-between items-center mb-6 border-b pb-4">
+        <h2 class="text-xl font-bold text-gray-800" id="tituloLote">Lote Extraído (0)</h2>
+        <button 
+          onclick="window.print()" 
+          class="bg-black text-white px-6 py-2 rounded font-medium hover:bg-gray-800 transition-colors"
+        >
+          Imprimir Comprovantes
+        </button>
+      </div>
+
+      <div id="listaFaturas" class="space-y-4"></div>
+    </div>
+
+  </div>
+
+  <script>
+    // Lógica Vanilla JS isolada
+    const arquivoInput = document.getElementById('arquivoInput');
+    const loadingMsg = document.getElementById('loadingMsg');
+    const areaResultados = document.getElementById('areaResultados');
+    const listaFaturas = document.getElementById('listaFaturas');
+    const tituloLote = document.getElementById('tituloLote');
+
+    arquivoInput.addEventListener('change', async (evento) => {
+      const arquivo = evento.target.files[0];
+      if (!arquivo) return;
+
+      // Trava UI
+      arquivoInput.disabled = true;
+      loadingMsg.classList.remove('hidden');
+      areaResultados.classList.add('hidden');
+      listaFaturas.innerHTML = ''; // Limpa resultados anteriores
+
+      const formData = new FormData();
+      formData.append("arquivo", arquivo);
+
+      try {
+        const resposta = await fetch("https://regexengineforbills.onrender.com/api/extrair", {
+          method: "POST",
+          body: formData,
+        });
+        
+        const json = await resposta.json();
+
+        if (json.status === "sucesso") {
+          renderizarFaturas(json.boletos);
+        } else {
+          alert("Erro da API: " + json.mensagem); 
+        }
+      } catch (erro) {
+        alert("O servidor Render falhou, está adormecido (cold start) ou offline.");
+        console.error(erro);
+      } finally {
+        // Destrava UI
+        arquivoInput.disabled = false;
+        loadingMsg.classList.add('hidden');
+        evento.target.value = ''; // Reseta o input
+      }
+    });
+
+    function renderizarFaturas(boletos) {
+      if (boletos.length === 0) {
+        alert("Nenhum boleto encontrado no documento.");
+        return;
+      }
+
+      tituloLote.textContent = `Lote Extraído (${boletos.length})`;
+      areaResultados.classList.remove('hidden');
+
+      // Gera o HTML para cada boleto retornado pela API
+      boletos.forEach(fatura => {
+        const card = document.createElement('div');
+        card.className = "bg-gray-50 border border-gray-200 p-6 rounded print-break-avoid print-border-b print:bg-transparent print:p-2";
+        
+        card.innerHTML = `
+          <p class="text-sm text-gray-500 uppercase tracking-wide print:text-black">Linha Digitável</p>
+          <p class="font-mono text-sm sm:text-base tracking-tight mb-4 text-black">${fatura.codigo}</p>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <p class="text-sm text-gray-500 print:text-black">Vencimento</p>
+              <p class="font-bold text-lg">${fatura.vencimento}</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500 print:text-black">Valor (R$)</p>
+              <p class="font-bold text-lg">${fatura.valor}</p>
+            </div>
+          </div>
+        `;
+        listaFaturas.appendChild(card);
+      });
+    }
+  </script>
+</body>
+</html>
