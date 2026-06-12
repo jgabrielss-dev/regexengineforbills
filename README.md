@@ -1,48 +1,47 @@
-# BoletoFlow Engine ⚙️
+# Financial Document Extraction Engine (RegexEngineForBills)
 
-Núcleo de extração vetorial e processamento espacial para automação de faturas financeiras e boletos bancários (Padrões FEBRABAN e Arrecadação).
+A high-performance Python microservice designed to extract, clean, and structure critical billing data (writable lines, due dates, and values) from natively generated electronic invoices (PDFs) using geometric text-mapping and optimized regular expressions.
 
-## 🎯 O Custo do Problema
+## 🚀 Live Demo
+Experience the extraction engine in real-time with zero installation:
+👉 **[Click here to launch the Web Interface (GitHub Pages)](#)** *(Replace this with your GitHub Pages URL)*
 
-A extração manual de dados em lotes de faturas (como faturas de energia, telecomunicações e borderôs atacadistas) gera um gargalo operacional massivo. Digitar linhas de 47 ou 48 dígitos manualmente resulta em quebras de caixa por falha humana, multas por atraso (vencimentos lidos incorretamente) e um desperdício incalculável de horas-homem em tarefas puramente administrativas.
+---
 
-O **BoletoFlow Engine** é uma API construída para substituir esse trabalho braçal. Ele recebe documentos PDF complexos, varre a geometria das páginas e devolve os dados estruturados em milissegundos.
+## 🎯 The Business Problem
+Manual data entry of bank slips (boletos) into corporate ERPs or financial spreadsheets is slow, highly prone to human error, and costly. This engine eliminates the administrative friction by programmatically transforming unstructured document layouts into structured, reliable JSON payloads ready to feed any financial automation pipeline or gateway (e.g., Asaas API).
 
-## 🧠 Arquitetura e Engenharia
+## 🛠️ Tech Stack & Architecture
+- **Language:** Python 3.10+
+- **Core Engine:** `pdfplumber` (for precise geometric text extraction and layout mapping)
+- **Data Parsing:** Native `re` (Regular Expressions optimized for Brazilian billing standards / Febraban standards)
+- **API Layer:** Lightweight web server deployed on Render
+- **Frontend Demo:** Single-file static HTML/JavaScript with Tailwind CSS CDN, hosted entirely on GitHub Pages.
 
-Este não é um simples extrator de texto baseado em Regex. Documentos financeiros reais possuem layouts caóticos, marcas d'água, códigos repetidos e linhas digitáveis fragmentadas ou ausentes. Para garantir precisão absoluta, o motor foi forjado com três pilares de engenharia:
+---
 
-1. **Reconstrução Geométrica (Spatial Bounding Boxes):** O motor contorna as falhas de formatação de PDFs legados agrupando caracteres pelas suas coordenadas `(X, Y)`. Ele cria "linhas físicas" virtuais na memória RAM para garantir que a leitura de blocos numéricos não sofra colisões com outras informações na página.
-2. **Processamento em Lote com Idempotência (Hash Sets):** Projetado para faturas corporativas de múltiplas páginas, o sistema acumula todas as faturas encontradas em um único processamento vetorial (Array). Para evitar a duplicação de dados gerada por boletos impressos duas vezes na mesma folha (Ficha de Compensação e Recibo), o algoritmo utiliza conjuntos (`set`) de busca $O(1)$ para barrar códigos repetidos na porta de entrada, economizando ciclos de CPU.
-3. **Escalonamento Tático de Extração (Marco Zero):** A localização do vencimento não usa âncoras fixas. O algoritmo crava um alfinete matemático nas coordenadas do código de barras recém-descoberto e usa o Teorema de Pitágoras (Distância Euclidiana) para rastrear os rótulos e datas mais próximos àquele boleto específico, ignorando datas fantasmas ou faturas vizinhas na mesma folha.
+## 🔌 API Reference
 
-## 🛠️ Stack Tecnológica
+### Extract Data from PDF
 
-* **Linguagem:** Python 3.10+
-* **Framework:** FastAPI / Uvicorn (Alta performance e assincronismo)
-* **Motor de Geometria:** pdfplumber (Baseado em pdfminer.six)
-* **Isolamento de Erros:** Traceback puro e contingência silenciosa com manipulação de `logging`.
-
-## 🚀 Como Executar (Ambiente Local)
-
-1. Clone este repositório e acesse a pasta raiz.
-2. Crie um ambiente virtual para isolar as dependências:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # No Linux/Mac
-Instale as dependências estritas do projeto:
-
-Bash
-pip install -r requirements.txt
-Suba o servidor Uvicorn:
-
-Bash
-uvicorn servidor:app --reload
-O motor estará escutando na porta http://localhost:8000.
-
-📡 Endpoints (API)
+```http
 POST /api/extrair
-Recebe o arquivo físico (PDF) via formulário multipart/form-data e retorna um JSON contendo a matriz de faturas extraídas. O ambiente está configurado para lidar graciosamente com falhas parciais (Fallback para "Revisão Manual") sem derrubar o serviço.
-
-
-***
+ParameterTypeDescriptionarquivofile (binary)Required. The native PDF invoice file to be processed.Request Example (cURL)Bashcurl -X POST [https://regexengineforbills.onrender.com/api/extrair](https://regexengineforbills.onrender.com/api/extrair) \
+  -F "arquivo=@fatura_internet.pdf"
+Response Example (Success 200 OK)JSON{
+  "status": "sucesso",
+  "total_processado": 1,
+  "boletos": [
+    {
+      "codigo": "00190.00009 02621.522009 12345.678904 5 98120000049900",
+      "vencimento": "15/07/2026",
+      "valor": "499.00"
+    }
+  ]
+}
+Response Example (Error 400 Bad Request)JSON{
+  "status": "erro",
+  "mensagem": "Formato de arquivo inválido. Apenas PDFs nativos são suportados."
+}
+🛡️ Built-in Production GuardrailsZero DB Coupling: The core engine is stateless. It operates independently of authorization states, maximizing throughput and horizontal scalability.Deduplication Logic: Built-in array-filtering that automatically identifies and drops duplicate barcodes within the same document payload before compilation, preventing double-billing or artificial quota consumption.Client-Side Payload Throttling: The demo interface strictly limits uploads to 5MB, cutting off resource-exhaustion attacks (DDoS via heavy files) before network payloads strike the server.⚠️ Known Limitations & Future ScopeNative PDFs Only: The current version relies on the document's vector text layer. Scanned documents or image-based invoices (JPEGs/PNGs) lack this layer.Next Iteration (Roadmap): Integrating an isolated OCR layer (e.g., Google Vision API or Tesseract binaries wrapped inside a custom Docker container) to handle low-resolution scans without degrading current regex parsing performance.Developed by João Gabriel — Focused on high-utility corporate automation.
+###
